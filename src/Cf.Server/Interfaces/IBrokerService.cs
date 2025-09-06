@@ -2,9 +2,9 @@ using Cf.Server.Models;
 
 namespace Cf.Server.Interfaces;
 
-public interface IBrokerService : IAsyncDisposable
+public interface IBrokerService 
 {
-    Task<BrokerResponse> SendRequestAsync(BrokerRequest request, CancellationToken cancellationToken = default);
+    Task<BrokerResponse> SendRequest(BrokerRequest request, CancellationToken cancellationToken = default);
 
     void Initialize();
 }

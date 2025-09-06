@@ -3,10 +3,10 @@ import { check, sleep } from "k6";
 
 export const options = {
     stages: [
-        { duration: "30s", target: 20 },
-        { duration: "2s", target: 10000 }, 
-        { duration: "30s", target: 10 }, 
-        { duration: "20s", target: 0 }, 
+        { duration: "5s", target: 20 },
+        { duration: "2s", target: 50 }, 
+        { duration: "3s", target: 10 }, 
+        { duration: "2s", target: 0 }, 
     ],
     thresholds: {
         http_req_duration: ["p(95)<500"], // 95% запросов должны выполняться быстрее 500мс
@@ -21,6 +21,7 @@ function getRandomInt(min, max) {
 export default function () {
     const id = getRandomInt(1, 1000);
     const url = `http://localhost:5211/api/Product${id}`;
+    //const url = `http://localhost:8080/api/Product${id}`;
     const res = http.get(url);
 
     // check(res, {
@@ -31,6 +32,10 @@ export default function () {
     check(res, {
         "status is 200": (r) => r.status === 200,
     });
+
+    if (res.status !== 200) {
+        console.error(`❌ Ошибка: status=${res.status}, body=${res.body}`);
+    }    
 
     sleep(1);
 }

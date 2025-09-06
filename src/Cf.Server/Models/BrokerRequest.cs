@@ -2,9 +2,9 @@ namespace Cf.Server.Models;
 
 public class BrokerRequest
 {
-    public string Method { get; set; } = string.Empty;
+    public string Method { get; init; } = string.Empty;
     
-    public string Path { get; set; } = string.Empty;
+    public string Path { get; init; } = string.Empty;
     
     public string? Body { get; set; }
     

@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using System.Security.Cryptography;
 using System.Text.Json;
 using Cf.Server.Config;
 using Cf.Server.Interfaces;
@@ -11,9 +12,7 @@ public class FileBrokerService : IBrokerService
     private readonly BrokerConfig _config;
     private readonly ILogger<FileBrokerService> _logger;
     private readonly AppConfig _appConfig;
-    private readonly Dictionary<string, FileSystemWatcher> _watchers = new();
-    private bool _disposed;
-
+    
     public FileBrokerService(BrokerConfig config,
         ILogger<FileBrokerService> logger,
         AppConfig appConfig)
@@ -35,25 +34,24 @@ public class FileBrokerService : IBrokerService
         _logger.LogInformation("Created broker directory: {Directory}", _appConfig.BrokerDirectory);
     }
 
-    public async Task<BrokerResponse> SendRequestAsync(BrokerRequest request,
+    public async Task<BrokerResponse> SendRequest(BrokerRequest request,
         CancellationToken cancellationToken = default)
     {
         var requestKey = CalculateRequestKey(request.Method, request.Path);
         var requestFile = Path.Combine(_appConfig.BrokerDirectory, $"{requestKey}.req");
         var responseFile = Path.Combine(_appConfig.BrokerDirectory, $"{requestKey}.resp");
 
-        await CleanupFiles(requestFile, responseFile);
+        CleanupFiles(requestFile, responseFile);
 
         await WriteRequestFile(requestFile, request);
 
-        return await WaitForResponseAsync(responseFile, requestKey, cancellationToken);
+        return await WaitForResponse(responseFile, requestKey, cancellationToken);
     }
 
-    private string CalculateRequestKey(string method, string path)
+    private static string CalculateRequestKey(string method, string path)
     {
-        using var md5 = System.Security.Cryptography.MD5.Create();
         var input = $"{method}{path}";
-        var hash = md5.ComputeHash(System.Text.Encoding.UTF8.GetBytes(input));
+        var hash = MD5.HashData(System.Text.Encoding.UTF8.GetBytes(input));
         return BitConverter.ToString(hash).Replace("-", "").ToLowerInvariant();
     }
 
@@ -78,7 +76,7 @@ public class FileBrokerService : IBrokerService
         throw new InvalidOperationException($"Failed to write request file: {filePath}");
     }
 
-    private async Task<BrokerResponse> WaitForResponseAsync(string responseFile, string requestKey,
+    private async Task<BrokerResponse> WaitForResponse(string responseFile, string requestKey,
         CancellationToken cancellationToken)
     {
         var timeoutToken = new CancellationTokenSource(_config.RequestTimeoutMs);
@@ -101,7 +99,7 @@ public class FileBrokerService : IBrokerService
         finally
         {
             timeoutToken.Dispose();
-            await CleanupFiles(responseFile, responseFile.Replace(".resp", ".req"));
+            CleanupFiles(responseFile, responseFile.Replace(".resp", ".req"));
         }
     }
 
@@ -117,7 +115,7 @@ public class FileBrokerService : IBrokerService
         using var reader = new StreamReader(fileStream);
 
         var firstLine = await reader.ReadLineAsync() ?? "500";
-
+        
         if (!int.TryParse(firstLine, out var statusCode))
         {
             statusCode = 500;
@@ -127,38 +125,23 @@ public class FileBrokerService : IBrokerService
         return new BrokerResponse { StatusCode = statusCode, Body = body };
     }
 
-    private async Task CleanupFiles(params string[] filePaths)
+    private void CleanupFiles(params string[] filePaths)
     {
         foreach (var filePath in filePaths)
         {
-            if (File.Exists(filePath))
+            if (!File.Exists(filePath))
             {
-                try
-                {
-                    File.Delete(filePath);
-                }
-                catch (IOException ex)
-                {
-                    _logger.LogWarning(ex, "Failed to delete file: {FilePath}", filePath);
-                }
+                continue;
+            }
+
+            try
+            {
+                File.Delete(filePath);
+            }
+            catch (IOException ex)
+            {
+                _logger.LogWarning(ex, "Failed to delete file: {FilePath}", filePath);
             }
         }
-    }
-
-    public async ValueTask DisposeAsync()
-    {
-        if (_disposed)
-        {
-            return;
-        }
-
-        foreach (var watcher in _watchers.Values)
-        {
-            watcher.Dispose();
-        }
-
-        _watchers.Clear();
-
-        _disposed = true;
     }
 }

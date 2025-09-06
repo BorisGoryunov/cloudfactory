@@ -3,10 +3,12 @@ import { check } from 'k6';
 
 
 const TOTAL_REQUESTS = 10000;     // Всего запросов
-const IDS_COUNT = 100;            // Сколько уникальных ID
+const IDS_COUNT = 1000;            // Сколько уникальных ID
 const BATCH_SIZE = TOTAL_REQUESTS / IDS_COUNT; // Запросов на один ID
 
 export const options = {
+  vus: 100,         
+  duration: '30s', 
   thresholds: {
     http_req_duration: ['p(95) < 500'],
     http_req_failed: ['rate < 0.01'],
@@ -16,7 +18,7 @@ export const options = {
 
 export default function () {
 
-  const myId = (__VU - 1) % IDS_COUNT + 1; // ID от 1 до 100
+const myId = (__VU % IDS_COUNT) + 1;
 
   for (let i = 0; i < BATCH_SIZE; i++) {
     

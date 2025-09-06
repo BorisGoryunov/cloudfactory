@@ -1,4 +1,6 @@
+using System.Text.Json;
 using Cf.Server.Config;
+using Cf.Server.Models;
 
 namespace Cf.Server.Services;
 
@@ -26,8 +28,8 @@ public class FileWatcherService : BackgroundService
         _watcher = new FileSystemWatcher(_watchDirectory)
         {
             NotifyFilter = NotifyFilters.FileName,
-            Filter = "*.req", 
-            IncludeSubdirectories = false 
+            Filter = "*.req",
+            IncludeSubdirectories = false
         };
 
         _watcher.Created += OnFileCreated;
@@ -39,7 +41,7 @@ public class FileWatcherService : BackgroundService
 
         while (!stoppingToken.IsCancellationRequested)
         {
-            await Task.Delay(1000, stoppingToken); 
+            await Task.Delay(1000, stoppingToken);
         }
     }
 
@@ -54,7 +56,18 @@ public class FileWatcherService : BackgroundService
         try
         {
             _logger.LogInformation("Обработка файла: {FilePath}", filePath);
-            File.WriteAllText(filePath.Replace("req", "resp"), "200");
+
+            var response = new BrokerResponse
+            {
+                StatusCode = 200,
+                Body = "OK"
+            };
+            
+            var json = JsonSerializer.Serialize(response);
+            
+            var content = $"200{Environment.NewLine}{json}";
+            
+            File.WriteAllText(filePath.Replace("req", "resp"), content);
         }
         catch (Exception ex)
         {

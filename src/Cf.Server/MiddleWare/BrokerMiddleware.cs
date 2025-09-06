@@ -12,11 +12,10 @@ public class BrokerMiddleware
     private readonly AppConfig _appConfig;
     private readonly ILogger<BrokerMiddleware> _logger;
 
-
-    public BrokerMiddleware(RequestDelegate next, 
+    public BrokerMiddleware(RequestDelegate next,
         HttpProcessingService processingService,
         AppConfig appConfig,
-        ILogger<BrokerMiddleware>  logger)
+        ILogger<BrokerMiddleware> logger)
     {
         _next = next;
         _processingService = processingService;
@@ -28,39 +27,43 @@ public class BrokerMiddleware
     {
         var sw = new Stopwatch();
         sw.Start();
-        if (context.Request.Path.StartsWithSegments("/api"))
+        try
         {
-            await ProcessBrokerRequestAsync(context);
+            if (context.Request.Path.StartsWithSegments("/api"))
+            {
+                await ProcessBrokerRequest(context);
+            }
+            else
+            {
+                await _next(context);
+            }
         }
-        else
+        finally
         {
-            await _next(context);
+            sw.Stop();
+            var ts = sw.Elapsed;
+            _logger.LogTrace($"Elapsed Time: {ts.TotalMilliseconds} ms");
         }
-        
-        sw.Stop();
-        var ts = sw.Elapsed;
-        _logger.LogTrace($"Elapsed Time: {ts.TotalMilliseconds} ms");
     }
 
-    private async Task ProcessBrokerRequestAsync(HttpContext context)
+    private async Task ProcessBrokerRequest(HttpContext context)
     {
-        var brokerRequest = await CreateBrokerRequestAsync(context.Request);
-
+        var brokerRequest = await CreateBrokerRequest(context.Request);
         try
         {
             BrokerResponse brokerResponse;
             if (_appConfig.UseAdvancedMode)
             {
                 brokerResponse =
-                    await _processingService.ProcessRequestAdvancedAsync(brokerRequest, context.RequestAborted);
+                    await _processingService.ProcessRequestAdvanced(brokerRequest, context.RequestAborted);
             }
             else
             {
                 brokerResponse =
-                    await _processingService.ProcessRequestPrimitiveAsync(brokerRequest, context.RequestAborted);
+                    await _processingService.ProcessRequestPrimitive(brokerRequest, context.RequestAborted);
             }
 
-            await WriteResponseAsync(context, brokerResponse);
+            await WriteResponse(context, brokerResponse);
         }
         catch (OperationCanceledException) when (context.RequestAborted.IsCancellationRequested)
         {
@@ -77,7 +80,7 @@ public class BrokerMiddleware
         }
     }
 
-    private async Task<BrokerRequest> CreateBrokerRequestAsync(HttpRequest httpRequest)
+    private async Task<BrokerRequest> CreateBrokerRequest(HttpRequest httpRequest)
     {
         using var reader = new StreamReader(httpRequest.Body);
         var body = await reader.ReadToEndAsync();
@@ -91,17 +94,13 @@ public class BrokerMiddleware
         };
     }
 
-    private async Task WriteResponseAsync(HttpContext context, BrokerResponse brokerResponse)
+    private async Task WriteResponse(HttpContext context, BrokerResponse brokerResponse)
     {
         context.Response.StatusCode = brokerResponse.StatusCode;
-        
-        foreach (var header in brokerResponse.Headers)
-        {
-            context.Response.Headers[header.Key] = header.Value;
-        }
 
         if (!string.IsNullOrEmpty(brokerResponse.Body))
         {
+            context.Response.ContentType = "application/json";
             await context.Response.WriteAsync(brokerResponse.Body);
         }
     }
