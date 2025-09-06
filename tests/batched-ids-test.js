@@ -18,7 +18,7 @@ export const options = {
 
 export default function () {
 
-const myId = (__VU % IDS_COUNT) + 1;
+  const myId = (__VU % IDS_COUNT) + 1;
 
   for (let i = 0; i < BATCH_SIZE; i++) {
     

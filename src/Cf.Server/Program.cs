@@ -7,10 +7,9 @@ using Cf.Server.Services;
 var builder = WebApplication.CreateBuilder(args);
 
 // Add services to the container.
-var brokerConfig = new BrokerConfig();
-builder.Configuration
-    .GetSection(nameof(BrokerConfig))
-    .Bind(brokerConfig);
+var brokerConfig = builder.Configuration
+    .GetRequiredSection(nameof(BrokerConfig))
+    .Get<BrokerConfig>()!;
 
 builder.Services.AddSingleton(brokerConfig);
 
