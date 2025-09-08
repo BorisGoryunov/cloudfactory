@@ -2,9 +2,11 @@ import http from "k6/http";
 import { check, sleep } from "k6";
 
 export const options = {
+    vus: 100,    
     stages: [
-        { duration: "5s", target: 20 },
-        { duration: "2s", target: 50 }, 
+        { duration: "15s", target: 20 },
+        { duration: "1m", target: 50 }, 
+        { duration: "1m", target: 150 }, 
         { duration: "3s", target: 10 }, 
         { duration: "2s", target: 0 }, 
     ],
@@ -20,8 +22,8 @@ function getRandomInt(min, max) {
 
 export default function () {
     const id = getRandomInt(1, 1000);
-    const url = `http://localhost:5211/api/Product${id}`;
-    //const url = `http://localhost:8080/api/Product${id}`;
+    //const url = `http://localhost:5211/api/Product${id}`;
+    const url = `http://localhost:8080/api/Product${id}`;
     const res = http.get(url);
 
     // check(res, {
