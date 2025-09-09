@@ -66,8 +66,12 @@ public class FileWatcherService : BackgroundService
             var json = JsonSerializer.Serialize(response);
             
             var content = $"200{Environment.NewLine}{json}";
+
+            var tempPath = filePath.Replace("req", "tmp");
+            File.WriteAllText(tempPath, content);
             
-            File.WriteAllText(filePath.Replace("req", "resp"), content);
+            var finalPath = tempPath.Replace("tmp", "resp");   
+            File.Move(tempPath, finalPath, true);
         }
         catch (Exception ex)
         {
