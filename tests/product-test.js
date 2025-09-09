@@ -36,7 +36,7 @@ export default function () {
     });
 
     if (res.status !== 200) {
-        console.error(`❌ Ошибка: status=${res.status}, body=${res.body}`);
+        console.error(`❌ Ошибка: id=${id} status=${res.status}, body=${res.body}`);
     }    
 
     sleep(1);
