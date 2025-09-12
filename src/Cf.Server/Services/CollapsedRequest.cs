@@ -23,21 +23,14 @@ public class CollapsedRequest : IDisposable
         }
 
         var tcs = new TaskCompletionSource<BrokerResponse>();
-        var registration = cancellationToken.Register(() => tcs.TrySetCanceled(cancellationToken));
+        await using var registration = cancellationToken.Register(() => tcs.TrySetCanceled(cancellationToken));
 
         lock (_waiters)
         {
             _waiters.Add(tcs);
         }
 
-        try
-        {
-            return await tcs.Task;
-        }
-        finally
-        {
-            await registration.DisposeAsync();
-        }
+        return await tcs.Task;
     }
 
     private async Task<BrokerResponse> ExecuteRequest()
@@ -62,7 +55,7 @@ public class CollapsedRequest : IDisposable
     private void CompleteAllWaiters(BrokerResponse? response, Exception? exception)
     {
         List<TaskCompletionSource<BrokerResponse>> waiters;
-        
+
         lock (_waiters)
         {
             waiters = new List<TaskCompletionSource<BrokerResponse>>(_waiters);
