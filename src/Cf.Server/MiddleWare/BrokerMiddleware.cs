@@ -51,17 +51,9 @@ public class BrokerMiddleware
         var brokerRequest = await CreateBrokerRequest(context.Request);
         try
         {
-            BrokerResponse brokerResponse;
-            if (_appConfig.UseAdvancedMode)
-            {
-                brokerResponse =
-                    await _processingService.ProcessRequestAdvanced(brokerRequest, context.RequestAborted);
-            }
-            else
-            {
-                brokerResponse =
-                    await _processingService.ProcessRequestPrimitive(brokerRequest, context.RequestAborted);
-            }
+            var brokerResponse = _appConfig.UseAdvancedMode
+                ? await _processingService.ProcessRequestAdvanced(brokerRequest, context.RequestAborted)
+                : await _processingService.ProcessRequestPrimitive(brokerRequest, context.RequestAborted);
 
             await WriteResponse(context, brokerResponse);
         }
@@ -75,8 +67,13 @@ public class BrokerMiddleware
         }
         catch (Exception ex)
         {
-            context.Response.StatusCode = StatusCodes.Status502BadGateway;
-            await context.Response.WriteAsync($"Broker error: {ex.Message}");
+            context.Response.StatusCode = StatusCodes.Status500InternalServerError;
+            var response = new BrokerResponse
+            {
+                StatusCode = context.Response.StatusCode,
+                Body = ex.Message
+            };
+            await WriteResponse(context, response);
         }
     }
 
